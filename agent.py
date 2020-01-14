@@ -9,14 +9,19 @@ from replay_buffer import ReplayBuffer
 import tensorflow as tf
 from tensorflow.keras import optimizers
 import numpy as np
+from os.path import join
 
-BUFFER_SIZE = int(1e4)  # Replay buffer size
-BATCH_SIZE = 32  # minibatch size
+BUFFER_SIZE = int(1e5)  # Replay buffer size
+BATCH_SIZE = 64  # minibatch size
+MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
-TAU = 1e-3  # soft update merge factor
-LR_ACTOR = 1e-4  # Actor's Learning rate
-LR_CRITIC = 3e-4  # Critic's Learning rate
+TAU = 0.001  # soft update merge factor
+LR_ACTOR = 0.01  # Actor's Learning rate
+LR_CRITIC = 0.005  # Critic's Learning rate
 WEIGHT_DECAY = 0.0001  # L2 weight decay
+CKPTS_PATH = './tf_ckpts'
+ACTOR_CKPTS = 'actor'
+CRITIC_CKPTS = 'critic'
 
 
 class Agent(object):
@@ -36,10 +41,36 @@ class Agent(object):
 
     def step(self, state, action, reward, done, next_state) -> None:
         self.memory.store(state, action, reward, done, next_state)
-        if self.memory.count > BATCH_SIZE:
+        if self.memory.count > BATCH_SIZE and self.memory.count > MIN_MEM_SIZE:
             experiences = self.memory.sample(BATCH_SIZE)
             self.learn(experiences, GAMMA)
             self.update_local()
+
+    def critic_train(self, states, actions, rewards, dones, next_states):
+        with tf.GradientTape() as tape:
+            # Compute yi
+            u_t = self.actor_target.network(next_states)
+            q_t = self.critic_target.network([next_states, u_t])
+            yi = rewards + GAMMA * (1 - dones) * q_t
+            # Compute MSE
+            q_l = self.critic_local.network([states, actions])
+            loss = tf.keras.losses.MSE(yi, q_l)
+            # Update critic by minimizing loss
+            dloss_dql = tape.gradient(loss, self.critic_local.network.trainable_weights)
+            self.critic_optimizer.apply_gradients(
+                zip(dloss_dql, self.critic_local.network.trainable_weights))
+        return
+
+    def actor_train(self, states, actions, rewards, dones, next_states):
+        with tf.GradientTape() as tape:
+            u_l = self.actor_local.network(states)
+            q_l = -self.critic_local.network([states, u_l])
+            j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
+            for i in range(len(j)):
+                j[i] /= BATCH_SIZE
+            self.actor_optimizer.apply_gradients(
+                zip(j, self.actor_local.network.trainable_weights))
+        return
 
     def learn(self, experiences, gamma) -> None:
         states, actions, rewards, dones, next_states = experiences
@@ -50,60 +81,25 @@ class Agent(object):
         actions = tf.convert_to_tensor(actions)
         rewards = np.array(rewards).reshape(BATCH_SIZE, 1)
         next_states = np.array(next_states).reshape(BATCH_SIZE, self.state_size)
-        with tf.GradientTape(watch_accessed_variables=False) as tape:
-            tape.watch(self.critic_local.network.trainable_weights)
-            tape.watch(actions)
-            # -----Update Critic------------------#
-            target_actor_pred = self.actor_target.network(states)
-            target_critic_pred = self.critic_target.network([next_states,
-                                                             target_actor_pred])
+        dones = np.array(dones).reshape(BATCH_SIZE, 1)
 
-            yi = rewards + GAMMA * target_critic_pred
-            # Compute the Loss MSE(yi, critic_local(states, actions)
-            local_critic_pred = self.critic_local.network([states, actions])
-            critic_loss = tf.keras.losses.MSE(yi, local_critic_pred)
-            # Minimize the loss on the critic local
-            dq_dt, dq_da = tape.gradient(critic_loss, [self.critic_local.network.trainable_weights,
-                                                       actions])
-            self.critic_optimizer.apply_gradients(
-                zip(dq_dt, self.critic_local.network.trainable_weights))
-        with tf.GradientTape(watch_accessed_variables=False) as tape:
-            tape.watch(self.actor_local.network.trainable_weights)
-            # -----Update Actor------------------#
-            local_actor_pred = self.actor_local.network(states)
-            q_pred = -self.critic_local.network([states, local_actor_pred])
-            j_grad = tape.gradient(q_pred, self.actor_local.network.trainable_weights)
-            self.actor_optimizer.apply_gradients(zip(j_grad, self.actor_local.network.trainable_weights))
+        self.critic_train(states, actions, rewards, dones, next_states)
+        self.actor_train(states, actions, rewards, dones, next_states)
+        return
 
     def update_local(self):
         for target_param, local_param in zip(self.actor_target.network.trainable_weights,
                                              self.actor_local.network.trainable_weights):
-            target_param = (TAU * local_param + (1.0 - TAU) * target_param)
+            target_param = TAU * local_param + (1.0 - TAU) * target_param
 
         for target_param, local_param in zip(self.critic_target.network.trainable_weights,
                                              self.critic_local.network.trainable_weights):
-            target_param = (TAU * local_param + (1.0 - TAU) * target_param)
+            target_param = TAU * local_param + (1.0 - TAU) * target_param
 
-        """s
-        with tf.GradientTape(watch_accessed_variables=False) as g:
-            # Update Critic #
-            target_actor_pred = self.actor_target.network.predict(states)
-            #print(f'actor_pred : {target_actor_pred}')
-            #print(f'states shape: {states.shape}\t target_actor_pred_shape: {target_actor_pred.shape}')
-
-            target_critic_pred = self.critic_target.network.predict([states, target_actor_pred])
-            #dq_da = g.gradient(target_critic_pred, self.    )
-
-            yi = rewards + GAMMA * target_critic_pred
-            self.critic_local.network.fit([states, actions], [yi], verbose=0)
-
-            # Update Actor #
-            # Compute actor loss
-            local_actor_pred = self.actor_local.network.predict(states)
-            actor_loss = tf.keras.losses.MSE(yi, self.critic_local.network.predict([states, local_actor_pred]))
-            #
-            da_dtheta = g.gradient(actor_loss, self.actor_local.network.trainable_weights)
-            """
+    def store_weights(self, episode: int) -> None:
+        self.actor_target.network.save_weights(join(CKPTS_PATH, ACTOR_CKPTS, f'cp-{episode}'))
+        self.critic_target.network.save_weights(join(CKPTS_PATH, CRITIC_CKPTS, f'cp-{episode}'))
+        return
 
     def act(self, state, add_noise=True):
         state = np.array(state).reshape(1, self.state_size)

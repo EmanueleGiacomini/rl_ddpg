@@ -11,11 +11,12 @@ class Critic(object):
     def __init__(self, state_space, action_space, lr):
         def create_critic_network():
             state_input = Input(shape=(state_space,))
+            x = BatchNormalization()(state_input)
             action_input = Input(shape=(action_space,))
-            x = Dense(400)(state_input)
+            x = Dense(20)(x)
             x = Activation('relu')(x)
-            x = Dense(300)(x)
-            y = Dense(300)(action_input)
+            x = BatchNormalization()(x)
+            y = Dense(20)(action_input)
             x = Add()([x, y])
             x = Activation('relu')(x)
             x = Dense(1)(x)
