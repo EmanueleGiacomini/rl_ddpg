@@ -16,7 +16,7 @@ BATCH_SIZE = 64  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
-LR_ACTOR = 0.01  # Actor's Learning rate
+LR_ACTOR = 0.001  # Actor's Learning rate
 LR_CRITIC = 0.005  # Critic's Learning rate
 WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
@@ -40,12 +40,12 @@ class Agent(object):
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
-        self.noise = OUNoise(action_size, random_seed)
+        self.noise = OUNoise(action_size)
         self.memory = ReplayBuffer(BUFFER_SIZE)
 
-    def step(self, state, action, reward, done, next_state) -> None:
+    def step(self, state, action, reward, done, next_state, train=True) -> None:
         self.memory.store(state, action, reward, done, next_state)
-        if self.memory.count > BATCH_SIZE and self.memory.count > MIN_MEM_SIZE:
+        if train and self.memory.count > BATCH_SIZE and self.memory.count > MIN_MEM_SIZE:
             experiences = self.memory.sample(BATCH_SIZE)
             self.learn(experiences, GAMMA)
             self.update_local()
@@ -69,9 +69,10 @@ class Agent(object):
         with tf.GradientTape() as tape:
             u_l = self.actor_local.network(states)
             q_l = self.critic_local.network([states, u_l])
+            q_l *= -1
             j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
             for i in range(len(j)):
-                j[i] /= -BATCH_SIZE
+                j[i] /= BATCH_SIZE
             self.actor_optimizer.apply_gradients(
                 zip(j, self.actor_local.network.trainable_weights))
         return
@@ -113,8 +114,7 @@ class Agent(object):
     def act(self, state, add_noise=True) -> (float, float):
         state = np.array(state).reshape(1, self.state_size)
         pure_action = self.actor_local.network.predict(state)[0]
-        noise = self.noise.sample()
-        action = np.clip(pure_action*0.2+noise, -1, 1)
+        action = self.noise.get_action(pure_action)
         return action, pure_action
 
     def reset(self):

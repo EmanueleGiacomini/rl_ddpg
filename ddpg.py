@@ -9,9 +9,9 @@ import pickle
 def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
                   r, d, mean, std, s):
     def iteration_str(reward, done, action_mean, action_std, steps) -> str:
-        return f'reward: {reward}, done: {done}, action_mean: {action_mean},' \
-               f' action_std: {action_std}, steps: {steps}'
-    print(f'episode: {ep}\t Train: {iteration_str(t_r, t_d, t_mean, t_std, t_s)}\t'
+        return f'reward: {"%.2f" % reward}, done: {done}, action_mean: {"%.3f" % action_mean},' \
+               f' action_std: {"%.3f" % action_std}, steps: {steps}'
+    print(f'{ep}: Train: {iteration_str(t_r, t_d, t_mean, t_std, t_s)}\t'
           f'Test: {iteration_str(r, d, mean, std, s)}')
 
 
@@ -19,7 +19,7 @@ class DDPG(object):
     def __init__(self, env):
         self.env = env
         self.agent = Agent(self.env.observation_space.shape[0],
-                           self.env.action_space.shape[0], 0)
+                           self.env.action_space.shape[0], 2)
         ...
     def run_epoch(self, max_steps, render=False, training=True):
         state = self.env.reset()
@@ -40,8 +40,7 @@ class DDPG(object):
             total_reward += reward
             actions.append(action)
             # Only update the agent if we're in training phase
-            if training:
-                self.agent.step(state, action, reward, done, next_state)
+            self.agent.step(state, action, reward, done, next_state, training)
             if render:
                 self.env.render()
 
@@ -51,12 +50,12 @@ class DDPG(object):
         action_std = np.std(actions)
         return total_reward, done, action_mean, action_std, steps
 
-    def run(self, max_episodes: int, max_iterations: int):
+    def run(self, max_episodes: int, max_iterations: int, render: bool):
         for ep in range(max_episodes):
             train_r, train_d, train_mean, train_std, train_s = self.run_epoch(max_iterations,
-                                                                              render=False)
+                                                                              render=render)
             test_r, test_d, test_mean, test_std, test_s = self.run_epoch(max_iterations,
-                                                                         render=False,
+                                                                         render=render,
                                                                          training=False)
             print_episode(ep, train_r, train_d, train_mean, train_std, train_s,
                           test_r, test_d, test_mean, test_std, test_s)

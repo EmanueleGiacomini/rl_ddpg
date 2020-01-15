@@ -10,17 +10,16 @@ from tensorflow.keras import optimizers
 class Critic(object):
     def __init__(self, state_space, action_space, lr):
         def create_critic_network():
-            state_input = Input(shape=(state_space,))
-            x = BatchNormalization()(state_input)
-            action_input = Input(shape=(action_space,))
-            x = Dense(20)(x)
-            x = Activation('relu')(x)
-            x = BatchNormalization()(x)
-            y = Dense(20)(action_input)
+            state_input = Input(shape=(state_space,), name='state_input')
+            action_input = Input(shape=(action_space,), name='action_input')
+            x = Dense(20, activation='relu', name='state_dense1')(state_input)
+            y = Dense(20, name='action_dense1')(action_input)
             x = Add()([x, y])
-            x = Activation('relu')(x)
-            x = Dense(1)(x)
+            x = Activation('sigmoid')(x)
+            x = Dense(10, activation='relu', name='as_dense')(x)
+            x = Dense(1, name='output')(x)
             model = tf.keras.Model(inputs=[state_input, action_input], outputs=[x])
+            tf.keras.utils.plot_model(model, './plots/critic/network.png')
             return model
         """
         def create_critic_network():
