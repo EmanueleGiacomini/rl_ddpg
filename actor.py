@@ -14,8 +14,10 @@ class Actor(object):
             model = tf.keras.models.Sequential()
             model.add(Dense(20, activation='relu', input_dim=state_space, name='state_input',
                             kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+            model.add(BatchNormalization())
             model.add(Dense(10, activation='relu', name='state_dense1',
                             kernel_regularizer=tf.keras.regularizers.l2(0.01)))
+            model.add(BatchNormalization())
             model.add(Dense(action_space, activation='tanh',
                             kernel_initializer=tf.keras.initializers.RandomUniform(-0.001, 0.001),
                             kernel_regularizer=tf.keras.regularizers.l2(0.01)))

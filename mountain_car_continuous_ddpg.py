@@ -9,7 +9,7 @@ import numpy as np
 
 NUM_EPISODES = 3000
 MAX_IT = 990
-RENDER_FLAG = False
+RENDER_FLAG = True
 
 if __name__ == '__main__':
     env = gym.make('MountainCarContinuous-v0')
