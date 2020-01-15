@@ -11,6 +11,7 @@ def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
     def iteration_str(reward, done, action_mean, action_std, steps) -> str:
         return f'reward: {"%.2f" % reward}, done: {done}, action_mean: {"%.3f" % action_mean},' \
                f' action_std: {"%.3f" % action_std}, steps: {steps}'
+
     print(f'{ep}: Train: {iteration_str(t_r, t_d, t_mean, t_std, t_s)}\t'
           f'Test: {iteration_str(r, d, mean, std, s)}')
 
@@ -21,6 +22,7 @@ class DDPG(object):
         self.agent = Agent(self.env.observation_space.shape[0],
                            self.env.action_space.shape[0], 2)
         ...
+
     def run_epoch(self, max_steps, render=False, training=True):
         state = self.env.reset()
         self.agent.reset()
@@ -36,7 +38,7 @@ class DDPG(object):
                 action = p_action
             # Let the env advance
             next_state, reward, done, info = self.env.step(action)
-            done = done==True
+            done = done == True
             total_reward += reward
             actions.append(action)
             # Only update the agent if we're in training phase
@@ -60,9 +62,6 @@ class DDPG(object):
             print_episode(ep, train_r, train_d, train_mean, train_std, train_s,
                           test_r, test_d, test_mean, test_std, test_s)
         self.env.close()
-
-
-
 
 
 def ddpg(env, n_episodes=2000, max_t=700):
@@ -97,4 +96,3 @@ def ddpg(env, n_episodes=2000, max_t=700):
         print(f'ep:{episode}\tscore: {score}')
         scores.append(score)
     env.close()
-

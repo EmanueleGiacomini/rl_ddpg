@@ -51,12 +51,10 @@ class CriticNetwork:
             state_input = Input(shape=[None, self.state_dim])
             action_input = Input(shape=[None, self.action_dim])
             x = Dense(400)(state_input)
-            x = BatchNormalization()(x)
             x = Activation('relu')(x)
             x = Dense(300)(x)
             y = Dense(300)(action_input)
             x = Add()([x, y])
-            x = BatchNormalization()(x)
             x = Activation('relu')(x)
             x = Dense(1,
                       kernel_initializer=tf.keras.initializers.RandomUniform(-0.003, 0.003))(x)

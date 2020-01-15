@@ -8,7 +8,7 @@ import numpy as np
 
 
 NUM_EPISODES = 3000
-MAX_IT = 1000
+MAX_IT = 990
 RENDER_FLAG = False
 
 if __name__ == '__main__':
