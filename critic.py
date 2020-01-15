@@ -19,7 +19,6 @@ class Critic(object):
             x = Dense(10, activation='relu', name='as_dense')(x)
             x = Dense(1, name='output')(x)
             model = tf.keras.Model(inputs=[state_input, action_input], outputs=[x])
-            tf.keras.utils.plot_model(model, './plots/critic/network.png')
             return model
         """
         def create_critic_network():
