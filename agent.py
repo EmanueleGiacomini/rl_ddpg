@@ -31,10 +31,14 @@ class Agent(object):
         self.actor_local = Actor(state_size, action_size, LR_ACTOR)
         self.actor_target = Actor(state_size, action_size, LR_ACTOR)
         self.actor_optimizer = optimizers.Adam(LR_ACTOR)
+        # let target be equal to local
+        self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
         self.critic_local = Critic(state_size, action_size, LR_CRITIC)
         self.critic_target = Critic(state_size, action_size, LR_CRITIC)
         self.critic_optimizer = optimizers.Adam(LR_CRITIC)
+        # let target be equal to local
+        self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
         self.noise = OUNoise(action_size, random_seed)
         self.memory = ReplayBuffer(BUFFER_SIZE)
