@@ -45,7 +45,7 @@ class DDPG(object):
             self.agent.step(state, action, reward, done, next_state, training)
             if render:
                 self.env.render()
-
+            state = next_state
             if done:
                 break
         action_mean = np.mean(actions)
