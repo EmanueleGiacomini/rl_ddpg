@@ -25,7 +25,7 @@ CRITIC_CKPTS = 'critic'
 
 
 class Agent(object):
-    def __init__(self, state_size, action_size, random_seed):
+    def __init__(self, state_size, action_size, random_seed=0):
         self.state_size = state_size
         self.action_size = action_size
         self.actor_local = Actor(state_size, action_size, LR_ACTOR)
@@ -68,10 +68,10 @@ class Agent(object):
     def actor_train(self, states, actions, rewards, dones, next_states):
         with tf.GradientTape() as tape:
             u_l = self.actor_local.network(states)
-            q_l = -self.critic_local.network([states, u_l])
+            q_l = self.critic_local.network([states, u_l])
             j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
             for i in range(len(j)):
-                j[i] /= BATCH_SIZE
+                j[i] /= -BATCH_SIZE
             self.actor_optimizer.apply_gradients(
                 zip(j, self.actor_local.network.trainable_weights))
         return
@@ -92,25 +92,33 @@ class Agent(object):
         return
 
     def update_local(self):
-        for target_param, local_param in zip(self.actor_target.network.trainable_weights,
-                                             self.actor_local.network.trainable_weights):
-            target_param = TAU * local_param + (1.0 - TAU) * target_param
+        def soft_updates(local_model: tf.keras.Model, target_model: tf.keras.Model) -> np.ndarray:
+            local_weights = np.array(local_model.get_weights())
+            target_weights = np.array(target_model.get_weights())
 
-        for target_param, local_param in zip(self.critic_target.network.trainable_weights,
-                                             self.critic_local.network.trainable_weights):
-            target_param = TAU * local_param + (1.0 - TAU) * target_param
+            assert len(local_weights) == len(target_weights)
+            new_weights = TAU * local_weights + (1 - TAU) * target_weights
+            return new_weights
+
+        self.actor_target.network.set_weights(soft_updates(self.actor_local.network,
+                                                           self.actor_target.network))
+        self.critic_target.network.set_weights(soft_updates(self.critic_local.network,
+                                                            self.critic_target.network))
 
     def store_weights(self, episode: int) -> None:
         self.actor_target.network.save_weights(join(CKPTS_PATH, ACTOR_CKPTS, f'cp-{episode}'))
         self.critic_target.network.save_weights(join(CKPTS_PATH, CRITIC_CKPTS, f'cp-{episode}'))
         return
 
-    def act(self, state, add_noise=True):
+    def act(self, state, add_noise=True) -> (float, float):
         state = np.array(state).reshape(1, self.state_size)
-        action = self.actor_local.network.predict(state)[0]
-        action += self.noise.sample()
-        # print(f'state: {state}\taction: {action}')
-        return action
+        pure_action = self.actor_local.network.predict(state)[0]
+        noise = self.noise.sample()
+        action = np.clip(pure_action*0.2+noise, -1, 1)
+        return action, pure_action
+
+    def reset(self):
+        self.noise.reset()
 
 
 if __name__ == '__main__':
