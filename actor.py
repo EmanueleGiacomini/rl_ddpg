@@ -15,7 +15,7 @@ class Actor(object):
             model.add(Dense(20, activation='relu', input_dim=state_space, name='state_input'))
             model.add(Dense(10, activation='relu', name='state_dense1'))
             model.add(Dense(action_space, activation='tanh'))
-            tf.keras.utils.plot_model(model, './plots/actor/network.png')
+            #tf.keras.utils.plot_model(model, './plots/actor/network.png')
             return model
 
         self.state_space = state_space
