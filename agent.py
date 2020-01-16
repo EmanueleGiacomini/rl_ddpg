@@ -16,7 +16,7 @@ BATCH_SIZE = 64  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
-LR_ACTOR = 0.0002  # Actor's Learning rate
+LR_ACTOR = 0.02  # Actor's Learning rate
 LR_CRITIC = 0.005  # Critic's Learning rate
 WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
@@ -30,7 +30,7 @@ class Agent(object):
         self.action_size = action_size
         self.actor_local = Actor(state_size, action_size, LR_ACTOR)
         self.actor_target = Actor(state_size, action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adam(LR_ACTOR)
+        self.actor_optimizer = optimizers.SGD(LR_ACTOR)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
@@ -51,18 +51,18 @@ class Agent(object):
             self.update_local()
 
     def critic_train(self, states, actions, rewards, dones, next_states):
+        # Compute yi
+        u_t = self.actor_target.network(next_states)
+        q_t = self.critic_target.network([next_states, u_t])
+        yi = rewards + GAMMA * (1 - dones) * q_t
+        # Compute MSE
         with tf.GradientTape() as tape:
-            # Compute yi
-            u_t = self.actor_target.network(next_states)
-            q_t = self.critic_target.network([next_states, u_t])
-            yi = rewards + GAMMA * (1 - dones) * q_t
-            # Compute MSE
             q_l = self.critic_local.network([states, actions])
             loss = tf.keras.losses.MSE(yi, q_l)
             # Update critic by minimizing loss
             dloss_dql = tape.gradient(loss, self.critic_local.network.trainable_weights)
-            self.critic_optimizer.apply_gradients(
-                zip(dloss_dql, self.critic_local.network.trainable_weights))
+        self.critic_optimizer.apply_gradients(
+            zip(dloss_dql, self.critic_local.network.trainable_weights))
         return
 
     def actor_train(self, states, actions, rewards, dones, next_states):
@@ -71,10 +71,10 @@ class Agent(object):
             q_l = self.critic_local.network([states, u_l])
             q_l *= -1
             j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
-            for i in range(len(j)):
-                j[i] /= BATCH_SIZE
-            self.actor_optimizer.apply_gradients(
-                zip(j, self.actor_local.network.trainable_weights))
+        for i in range(len(j)):
+            j[i] /= BATCH_SIZE
+        self.actor_optimizer.apply_gradients(
+            zip(j, self.actor_local.network.trainable_weights))
         return
 
     def learn(self, experiences, gamma) -> None:
