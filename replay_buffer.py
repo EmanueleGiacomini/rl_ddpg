@@ -24,7 +24,7 @@ class ReplayBuffer:
             self.buffer.append(elem)
             self.count += 1
         else:
-            self.buffer.popleft()
+            self.buffer.pop()
             self.buffer.appendleft(elem)
 
     def sample(self, batch_size):

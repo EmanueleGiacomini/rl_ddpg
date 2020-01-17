@@ -16,8 +16,8 @@ BATCH_SIZE = 64  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
-LR_ACTOR = 0.02  # Actor's Learning rate
-LR_CRITIC = 0.005  # Critic's Learning rate
+LR_ACTOR = 1e-4  # Actor's Learning rate
+LR_CRITIC = 1e-3  # Critic's Learning rate
 WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
 ACTOR_CKPTS = 'actor'
@@ -30,7 +30,7 @@ class Agent(object):
         self.action_size = action_size
         self.actor_local = Actor(state_size, action_size, LR_ACTOR)
         self.actor_target = Actor(state_size, action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.SGD(LR_ACTOR)
+        self.actor_optimizer = optimizers.Adam(LR_ACTOR)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
@@ -48,38 +48,54 @@ class Agent(object):
         if train and self.memory.count > BATCH_SIZE and self.memory.count > MIN_MEM_SIZE:
             experiences = self.memory.sample(BATCH_SIZE)
             self.learn(experiences, GAMMA)
-            self.update_local()
 
     def critic_train(self, states, actions, rewards, dones, next_states):
         # Compute yi
         u_t = self.actor_target.network(next_states)
         q_t = self.critic_target.network([next_states, u_t])
         yi = rewards + GAMMA * (1 - dones) * q_t
+
         # Compute MSE
         with tf.GradientTape() as tape:
             q_l = self.critic_local.network([states, actions])
-            loss = tf.keras.losses.MSE(yi, q_l)
+            loss = tf.keras.losses.MSE(yi, q_l) / BATCH_SIZE
             # Update critic by minimizing loss
             dloss_dql = tape.gradient(loss, self.critic_local.network.trainable_weights)
         self.critic_optimizer.apply_gradients(
             zip(dloss_dql, self.critic_local.network.trainable_weights))
+        """
+        for i in range(len(dones)):
+            if dones[i]:
+                print('critic_train:')
+                print(f'yi_mean: {np.mean(yi)}, yi_std: {np.std(yi)}'
+                      f'ql_mean: {np.mean(q_l)}, ql_std: {np.std(q_l)}')
+                print('-----------')
+        """
         return
 
     def actor_train(self, states, actions, rewards, dones, next_states):
         with tf.GradientTape() as tape:
             u_l = self.actor_local.network(states)
             q_l = self.critic_local.network([states, u_l])
-            q_l *= -1
-            j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
+        j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
+        #print(f'actor_train: u_mean: {np.mean(u_l)}\tu_std: {np.std(u_l)}\tq_mean: {np.mean(q_l)}'
+              #f'\tq_std: {np.std(q_l)}')
         for i in range(len(j)):
-            j[i] /= BATCH_SIZE
+            j[i] /= -BATCH_SIZE
         self.actor_optimizer.apply_gradients(
             zip(j, self.actor_local.network.trainable_weights))
+        """
+        for i in range(len(dones)):
+            if dones[i]:
+                print('actor_train:')
+                print(f'ul_mean: {np.mean(u_l)}, ul_std: {np.std(u_l)}'
+                      f'ql_mean: {np.mean(q_l)}, ql_std: {np.std(q_l)}')
+                print('-----------')
+        """
         return
 
     def learn(self, experiences, gamma) -> None:
         states, actions, rewards, dones, next_states = experiences
-
         states = np.array(states).reshape(BATCH_SIZE, self.state_size)
         states = tf.convert_to_tensor(states)
         actions = np.array(actions).reshape(BATCH_SIZE, self.action_size)
@@ -90,6 +106,7 @@ class Agent(object):
 
         self.critic_train(states, actions, rewards, dones, next_states)
         self.actor_train(states, actions, rewards, dones, next_states)
+        self.update_local()
         return
 
     def update_local(self):

@@ -3,67 +3,30 @@ critic.py
 """
 
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, BatchNormalization, Activation, Input, Add
+from tensorflow.keras.layers import Dense, BatchNormalization, Activation, Input, Concatenate
 from tensorflow.keras import optimizers
 
 
 class Critic(object):
     def __init__(self, state_space, action_space, lr):
         def create_critic_network():
-            state_input = Input(shape=(state_space,), name='state_input')
-            action_input = Input(shape=(action_space,), name='action_input')
-            x = Dense(20, activation='relu', name='state_dense1')(state_input)
-            y = Dense(20, name='action_dense1')(action_input)
-            x = Add()([x, y])
-            x = Activation('sigmoid')(x)
-            x = Dense(10, activation='relu', name='as_dense')(x)
-            x = Dense(1, name='output')(x)
-            model = tf.keras.Model(inputs=[state_input, action_input], outputs=[x])
+            state_in = Input(shape=(state_space,), dtype='float64')
+            state_net = Dense(30, activation='relu')(state_in)
+            state_net = Dense(20, activation='relu')(state_net)
+
+            action_in = Input(shape=(action_space,), dtype='float64')
+            action_net = Dense(30, activation='relu')(action_in)
+            action_net = Dense(20)(action_net)
+
+            net = Concatenate()([state_net, action_net])
+            net = Activation('relu')(net)
+            out = Dense(1, activation='linear')(net)
+            model = tf.keras.Model(inputs=[state_in, action_in], outputs=[out])
             return model
-        """
-        def create_critic_network():
-            state_input = Input(shape=[None, state_space])
-            action_input = Input(shape=[None, action_space])
-            x = Dense(400)(state_input)
-            x = Activation('relu')(x)
-            x = Dense(300)(x)
-            y = Dense(300)(action_input)
-            x = Add()([x, y])
-            x = Activation('relu')(x)
-            x = Dense(1)(x)
-            opt = optimizers.Adam(learning_rate=lr)
-            model = tf.keras.Model(inputs=[state_input, action_input], outputs=[x])
-            model.compile(opt, 'mse')
-            tf.keras.utils.plot_model(model, 'model.png')
-            return model
-        """
+
         self.state_space = state_space
         self.action_space = action_space
         self.network = create_critic_network()
 
-
-class CriticNetwork:
-    def __init__(self, state_dim, action_dim):
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-
-        def create_network() -> tf.keras.Model:
-            state_input = Input(shape=[None, self.state_dim])
-            action_input = Input(shape=[None, self.action_dim])
-            x = Dense(400)(state_input)
-            x = Activation('relu')(x)
-            x = Dense(300)(x)
-            y = Dense(300)(action_input)
-            x = Add()([x, y])
-            x = Activation('relu')(x)
-            x = Dense(1,
-                      kernel_initializer=tf.keras.initializers.RandomUniform(-0.003, 0.003))(x)
-            model = tf.keras.Model(inputs=[state_input, action_input], outputs=[x])
-            return model
-
-        self.network = create_network()
-        ...
-
-
 if __name__ == '__main__':
-    critic = CriticNetwork(2, 1)
+    ...
