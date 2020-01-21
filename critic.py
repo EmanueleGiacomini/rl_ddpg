@@ -16,10 +16,8 @@ class Critic(object):
             state_net = Dense(20, activation='relu')(state_net)
 
             action_in = Input(shape=(action_space,), dtype='float64')
-            action_net = BatchNormalization()(action_in)
-            action_net = Dense(30, activation='relu')(action_net)
+            action_net = Dense(30, activation='relu')(action_in)
             action_net = Dense(20)(action_net)
-
             net = Concatenate()([state_net, action_net])
             net = Activation('relu')(net)
             out = Dense(1, activation='linear')(net)

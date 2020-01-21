@@ -30,13 +30,13 @@ class Agent(object):
         self.action_size = action_space.shape[0]
         self.actor_local = Actor(self.state_size, self.action_size, LR_ACTOR)
         self.actor_target = Actor(self.state_size, self.action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adam()
+        self.actor_optimizer = optimizers.Adadelta(1.0)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
         self.critic_local = Critic(self.state_size, self.action_size, LR_CRITIC)
         self.critic_target = Critic(self.state_size, self.action_size, LR_CRITIC)
-        self.critic_optimizer = optimizers.Adam(LR_CRITIC)
+        self.critic_optimizer = optimizers.Adadelta(1.0)
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
@@ -74,14 +74,18 @@ class Agent(object):
         return
 
     def actor_train(self, states, actions, rewards, dones, next_states):
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(watch_accessed_variables=False) as tape1:
+            tape1.watch(self.actor_local.network.trainable_variables)
             u_l = self.actor_local.network(states)
+        with tf.GradientTape(watch_accessed_variables=False) as tape2:
+            tape2.watch(u_l)
             q_l = self.critic_local.network([states, u_l])
-        j = tape.gradient(q_l, self.actor_local.network.trainable_variables)
-        #print(f'actor_train: u_mean: {np.mean(u_l)}\tu_std: {np.std(u_l)}\tq_mean: {np.mean(q_l)}'
-              #f'\tq_std: {np.std(q_l)}')
+        q_grads = -tape2.gradient(q_l, u_l)
+        j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, q_grads)
+        """
         for i in range(len(j)):
-            j[i] /= -BATCH_SIZE
+            j[i] /= BATCH_SIZE
+        """
         self.actor_optimizer.apply_gradients(
             zip(j, self.actor_local.network.trainable_variables))
         """
