@@ -12,7 +12,7 @@ import numpy as np
 from os.path import join
 
 BUFFER_SIZE = int(1e6)  # Replay buffer size
-BATCH_SIZE = 128  # minibatch size
+BATCH_SIZE = 64  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
@@ -25,22 +25,22 @@ CRITIC_CKPTS = 'critic'
 
 
 class Agent(object):
-    def __init__(self, state_size, action_size, random_seed=0):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.actor_local = Actor(state_size, action_size, LR_ACTOR)
-        self.actor_target = Actor(state_size, action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adadelta()
+    def __init__(self, state_space, action_space, random_seed=0):
+        self.state_size = state_space.shape[0]
+        self.action_size = action_space.shape[0]
+        self.actor_local = Actor(self.state_size, self.action_size, LR_ACTOR)
+        self.actor_target = Actor(self.state_size, self.action_size, LR_ACTOR)
+        self.actor_optimizer = optimizers.Adam()
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
-        self.critic_local = Critic(state_size, action_size, LR_CRITIC)
-        self.critic_target = Critic(state_size, action_size, LR_CRITIC)
-        self.critic_optimizer = optimizers.Adadelta(LR_CRITIC)
+        self.critic_local = Critic(self.state_size, self.action_size, LR_CRITIC)
+        self.critic_target = Critic(self.state_size, self.action_size, LR_CRITIC)
+        self.critic_optimizer = optimizers.Adam(LR_CRITIC)
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
-        self.noise = OUNoise(action_size)
+        self.noise = OUNoise(self.action_size)
         self.memory = ReplayBuffer(BUFFER_SIZE)
 
     def step(self, state, action, reward, done, next_state, train=True) -> None:
