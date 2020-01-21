@@ -13,7 +13,8 @@ class Actor(object):
         def create_actor_network() -> tf.keras.Model:
             model = tf.keras.models.Sequential()
             model.add(Dense(20, activation='relu', input_dim=state_space, name='state_input'))
-            model.add(Dense(10, activation='sigmoid', name='state_dense1'))
+            model.add(BatchNormalization())
+            model.add(Dense(10, activation='relu', name='state_dense1'))
             model.add(Dense(action_space, activation='tanh'))
             #tf.keras.utils.plot_model(model, './plots/actor/network.png')
             return model

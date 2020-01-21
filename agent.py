@@ -11,8 +11,8 @@ from tensorflow.keras import optimizers
 import numpy as np
 from os.path import join
 
-BUFFER_SIZE = int(1e5)  # Replay buffer size
-BATCH_SIZE = 64  # minibatch size
+BUFFER_SIZE = int(1e6)  # Replay buffer size
+BATCH_SIZE = 128  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
@@ -30,13 +30,13 @@ class Agent(object):
         self.action_size = action_size
         self.actor_local = Actor(state_size, action_size, LR_ACTOR)
         self.actor_target = Actor(state_size, action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adam(LR_ACTOR)
+        self.actor_optimizer = optimizers.Adadelta()
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
         self.critic_local = Critic(state_size, action_size, LR_CRITIC)
         self.critic_target = Critic(state_size, action_size, LR_CRITIC)
-        self.critic_optimizer = optimizers.Adam(LR_CRITIC)
+        self.critic_optimizer = optimizers.Adadelta(LR_CRITIC)
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
@@ -77,13 +77,13 @@ class Agent(object):
         with tf.GradientTape() as tape:
             u_l = self.actor_local.network(states)
             q_l = self.critic_local.network([states, u_l])
-        j = tape.gradient(q_l, self.actor_local.network.trainable_weights)
+        j = tape.gradient(q_l, self.actor_local.network.trainable_variables)
         #print(f'actor_train: u_mean: {np.mean(u_l)}\tu_std: {np.std(u_l)}\tq_mean: {np.mean(q_l)}'
               #f'\tq_std: {np.std(q_l)}')
         for i in range(len(j)):
             j[i] /= -BATCH_SIZE
         self.actor_optimizer.apply_gradients(
-            zip(j, self.actor_local.network.trainable_weights))
+            zip(j, self.actor_local.network.trainable_variables))
         """
         for i in range(len(dones)):
             if dones[i]:

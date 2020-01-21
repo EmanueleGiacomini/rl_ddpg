@@ -66,6 +66,5 @@ class DDPG(object):
 
             if ep % 2 == 0:
                 plot_actor_decision(self.env, self.agent.actor_local.network)
-                print(self.agent.actor_local.network.trainable_weights)
 
         self.env.close()

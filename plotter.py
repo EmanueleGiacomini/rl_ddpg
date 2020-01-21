@@ -16,7 +16,9 @@ def actor_decision(actor, x, y):
         row = []
         for j in range(len(y)):
             state = np.array([x[i, j], y[i, j]]).reshape(1, 2)
-            row.append(float(actor(state)[0]))
+            action = float(actor(state)[0])
+            print(f'state: {state}\t action: {action}')
+            row.append(action)
         z.append(row)
     z = np.array(z)
     return z
