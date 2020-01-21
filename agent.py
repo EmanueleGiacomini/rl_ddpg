@@ -11,13 +11,14 @@ from tensorflow.keras import optimizers
 import numpy as np
 from os.path import join
 
-BUFFER_SIZE = int(1e5)  # Replay buffer size
+BUFFER_SIZE = int(5000)  # Replay buffer size
 BATCH_SIZE = 64  # minibatch size
-MIN_MEM_SIZE = 2000  # Minimum memory size before training
+MIN_MEM_SIZE = 1000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
-LR_ACTOR = 4e-3  # Actor's Learning rate
-LR_CRITIC = 1e-3  # Critic's Learning rate
+LR_ACTOR = 0.0001  # Actor's Learning rate
+LR_CRITIC = 0.001  # Critic's Learning rate
+UPDATE_STEPS = 1
 WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
 ACTOR_CKPTS = 'actor'
@@ -30,7 +31,7 @@ class Agent(object):
         self.action_size = action_space.shape[0]
         self.actor_local = Actor(self.state_size, self.action_size, LR_ACTOR)
         self.actor_target = Actor(self.state_size, self.action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.RMSprop(LR_ACTOR)
+        self.actor_optimizer = optimizers.Adam(LR_ACTOR)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
@@ -43,11 +44,15 @@ class Agent(object):
         self.noise = OUNoise(self.action_size)
         self.memory = ReplayBuffer(BUFFER_SIZE)
 
+        self.current_steps = 0
+
     def step(self, state, action, reward, done, next_state, train=True) -> None:
         self.memory.store(state, action, reward, done, next_state)
         if train and self.memory.count > BATCH_SIZE and self.memory.count > MIN_MEM_SIZE:
-            experiences = self.memory.sample(BATCH_SIZE)
-            self.learn(experiences, GAMMA)
+            if self.current_steps % UPDATE_STEPS == 0:
+                experiences = self.memory.sample(BATCH_SIZE)
+                self.learn(experiences, GAMMA)
+            self.current_steps += 1
 
     def critic_train(self, states, actions, rewards, dones, next_states):
         # Compute yi
@@ -105,20 +110,10 @@ class Agent(object):
             q_l = self.critic_local.network([states, u_l])
         q_grads = tape2.gradient(q_l, u_l)
         j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, -q_grads)
-        """
-        for i in range(len(j)):
-            j[i] /= BATCH_SIZE
-        """
+        #for i in range(len(j)):
+        #    j[i] /= BATCH_SIZE
         self.actor_optimizer.apply_gradients(
             zip(j, self.actor_local.network.trainable_variables))
-        """
-        for i in range(len(dones)):
-            if dones[i]:
-                print('actor_train:')
-                print(f'ul_mean: {np.mean(u_l)}, ul_std: {np.std(u_l)}'
-                      f'ql_mean: {np.mean(q_l)}, ql_std: {np.std(q_l)}')
-                print('-----------')
-        """
         return
 
     def learn(self, experiences, gamma) -> None:
