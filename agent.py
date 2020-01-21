@@ -11,12 +11,12 @@ from tensorflow.keras import optimizers
 import numpy as np
 from os.path import join
 
-BUFFER_SIZE = int(1e6)  # Replay buffer size
+BUFFER_SIZE = int(1e5)  # Replay buffer size
 BATCH_SIZE = 64  # minibatch size
 MIN_MEM_SIZE = 2000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
-LR_ACTOR = 1e-4  # Actor's Learning rate
+LR_ACTOR = 4e-3  # Actor's Learning rate
 LR_CRITIC = 1e-3  # Critic's Learning rate
 WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
@@ -30,13 +30,13 @@ class Agent(object):
         self.action_size = action_space.shape[0]
         self.actor_local = Actor(self.state_size, self.action_size, LR_ACTOR)
         self.actor_target = Actor(self.state_size, self.action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adadelta(1.0)
+        self.actor_optimizer = optimizers.RMSprop(LR_ACTOR)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
         self.critic_local = Critic(self.state_size, self.action_size, LR_CRITIC)
         self.critic_target = Critic(self.state_size, self.action_size, LR_CRITIC)
-        self.critic_optimizer = optimizers.Adadelta(1.0)
+        self.critic_optimizer = optimizers.Adam(LR_CRITIC)
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
@@ -73,6 +73,29 @@ class Agent(object):
         """
         return
 
+    def super_actor_train(self, states, actions, rewards, dones, next_states):
+        j_grad = None
+        for i in range(BATCH_SIZE):
+            with tf.GradientTape(watch_accessed_variables=False) as tape1:
+                tape1.watch(self.actor_local.network.trainable_variables)
+                pi = self.actor_local.network(states[i:i+1])
+            with tf.GradientTape(watch_accessed_variables=False) as tape2:
+                tape2.watch(pi)
+                q = -self.critic_local.network([states[i:i+1], pi])
+            q_grad = tape2.gradient(q, pi)
+            pi_grad = tape1.gradient(pi, self.actor_local.network.trainable_variables, q_grad)
+            if i == 0:
+                j_grad = pi_grad
+            else:
+                for j in range(len(pi_grad)):
+                    j_grad[j] += pi_grad[j]
+        for j in range(len(j_grad)):
+            j_grad[j] /= BATCH_SIZE
+        self.actor_optimizer.apply_gradients(
+            zip(j_grad, self.actor_local.network.trainable_variables)
+        )
+
+
     def actor_train(self, states, actions, rewards, dones, next_states):
         with tf.GradientTape(watch_accessed_variables=False) as tape1:
             tape1.watch(self.actor_local.network.trainable_variables)
@@ -80,8 +103,8 @@ class Agent(object):
         with tf.GradientTape(watch_accessed_variables=False) as tape2:
             tape2.watch(u_l)
             q_l = self.critic_local.network([states, u_l])
-        q_grads = -tape2.gradient(q_l, u_l)
-        j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, q_grads)
+        q_grads = tape2.gradient(q_l, u_l)
+        j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, -q_grads)
         """
         for i in range(len(j)):
             j[i] /= BATCH_SIZE
@@ -110,6 +133,7 @@ class Agent(object):
 
         self.critic_train(states, actions, rewards, dones, next_states)
         self.actor_train(states, actions, rewards, dones, next_states)
+        #self.super_actor_train(states, actions, rewards, dones, next_states)
         self.update_local()
         return
 

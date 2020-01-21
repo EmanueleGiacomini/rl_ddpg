@@ -4,7 +4,7 @@ ddpg.py
 from agent import Agent
 import numpy as np
 import pickle
-from plotter import plot_actor_decision, plot_critic_decision
+from plotter import plot_ddpg_decisions
 
 
 def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
@@ -65,8 +65,9 @@ class DDPG(object):
                           test_r, test_d, test_mean, test_std, test_s)
 
             if ep % 2 == 0:
-                plot_actor_decision(self.env, self.agent.actor_local.network)
-                plot_critic_decision(self.env, self.agent.actor_local.network,
-                                     self.agent.critic_local.network)
+                plot_ddpg_decisions(ep,
+                                    self.agent.actor_local.network,
+                                    self.agent.critic_local.network,
+                                    self.env)
 
         self.env.close()
