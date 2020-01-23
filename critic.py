@@ -5,6 +5,8 @@ critic.py
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, BatchNormalization, Activation, Input, Concatenate
 from tensorflow.keras import optimizers
+import numpy
+
 
 
 class Critic(object):

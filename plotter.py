@@ -128,11 +128,15 @@ def plot_ddpg_decisions(ep: int,
                           origin='lower',
                           extent=[xi.min(), xi.max(), yi.min(), yi.max()])
     axs[1].set_aspect('auto')
-
-    plt.show()
+    plt.savefig(f'decision-plots/{ep}.png')
+    return
 
 
 if __name__ == '__main__':
+    plt.ion()
+    fig = plt.figure()
+    plt.axis([0, 1000, 0, 1])
+
     env = gym.make('MountainCarContinuous-v0')
     actor = Actor(env.observation_space.shape[0],
                   env.action_space.shape[0], 0.0)

@@ -5,7 +5,7 @@ from agent import Agent
 import numpy as np
 import pickle
 from plotter import plot_ddpg_decisions
-
+from matplotlib import pyplot as plt
 
 def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
                   r, d, mean, std, s):

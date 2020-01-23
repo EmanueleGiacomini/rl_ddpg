@@ -4,7 +4,7 @@ mountain_car_continuous_ddpg.py
 
 import gym
 from ddpg import DDPG
-import numpy as np
+
 
 
 NUM_EPISODES = 3000
