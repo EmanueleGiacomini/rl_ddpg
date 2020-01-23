@@ -11,9 +11,9 @@ from tensorflow.keras import optimizers
 import numpy as np
 from os.path import join
 
-BUFFER_SIZE = int(5000)  # Replay buffer size
+BUFFER_SIZE = int(50000)  # Replay buffer size
 BATCH_SIZE = 64  # minibatch size
-MIN_MEM_SIZE = 1000  # Minimum memory size before training
+MIN_MEM_SIZE = 3000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
 LR_ACTOR = 0.0001  # Actor's Learning rate

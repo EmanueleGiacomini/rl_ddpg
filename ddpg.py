@@ -63,11 +63,12 @@ class DDPG(object):
                                                                          training=False)
             print_episode(ep, train_r, train_d, train_mean, train_std, train_s,
                           test_r, test_d, test_mean, test_std, test_s)
-
+            """
             if ep % 2 == 0:
                 plot_ddpg_decisions(ep,
                                     self.agent.actor_local.network,
                                     self.agent.critic_local.network,
                                     self.env)
+            """
 
         self.env.close()
