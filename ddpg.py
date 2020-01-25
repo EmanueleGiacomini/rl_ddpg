@@ -38,11 +38,18 @@ class DDPG(object):
             else:
                 action = p_action
 
+            actions.append(action)
+
+            if action > 0:
+                action = int(1)
+            else:
+                action = int(0)
+
             # Let the env advance
             next_state, reward, done, info = self.env.step(action)
             done = done == True
             total_reward += reward
-            actions.append(action)
+
             # Only update the agent if we're in training phase
             self.agent.step(state, action, reward, done, next_state, training)
             if render:
@@ -70,5 +77,4 @@ class DDPG(object):
                                     self.agent.critic_local.network,
                                     self.env)
             """
-
         self.env.close()

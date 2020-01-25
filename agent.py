@@ -12,14 +12,14 @@ import numpy as np
 from os.path import join
 
 BUFFER_SIZE = int(50000)  # Replay buffer size
-BATCH_SIZE = 64  # minibatch size
-MIN_MEM_SIZE = 3000  # Minimum memory size before training
+BATCH_SIZE = 128  # minibatch size
+MIN_MEM_SIZE = 1000  # Minimum memory size before training
 GAMMA = 0.99  # discount factor
 TAU = 0.001  # soft update merge factor
 LR_ACTOR = 0.0001  # Actor's Learning rate
 LR_CRITIC = 0.001  # Critic's Learning rate
 UPDATE_STEPS = 1
-WEIGHT_DECAY = 0.0001  # L2 weight decay
+# WEIGHT_DECAY = 0.0001  # L2 weight decay
 CKPTS_PATH = './tf_ckpts'
 ACTOR_CKPTS = 'actor'
 CRITIC_CKPTS = 'critic'
@@ -28,16 +28,17 @@ CRITIC_CKPTS = 'critic'
 class Agent(object):
     def __init__(self, state_space, action_space, random_seed=0):
         self.state_size = state_space.shape[0]
-        self.action_size = action_space.shape[0]
+        #self.action_size = action_space.shape[0]
+        self.action_size = 1 # Discrete case
         self.actor_local = Actor(self.state_size, self.action_size, LR_ACTOR)
         self.actor_target = Actor(self.state_size, self.action_size, LR_ACTOR)
-        self.actor_optimizer = optimizers.Adam(LR_ACTOR)
+        self.actor_optimizer = optimizers.Adam(LR_ACTOR, clipnorm=1.)
         # let target be equal to local
         self.actor_target.network.set_weights(self.actor_local.network.get_weights())
 
         self.critic_local = Critic(self.state_size, self.action_size, LR_CRITIC)
         self.critic_target = Critic(self.state_size, self.action_size, LR_CRITIC)
-        self.critic_optimizer = optimizers.Adam(LR_CRITIC)
+        self.critic_optimizer = optimizers.Adam(LR_CRITIC, clipnorm=1.)
         # let target be equal to local
         self.critic_target.network.set_weights(self.critic_local.network.get_weights())
 
@@ -107,11 +108,9 @@ class Agent(object):
             u_l = self.actor_local.network(states)
         with tf.GradientTape(watch_accessed_variables=False) as tape2:
             tape2.watch(u_l)
-            q_l = self.critic_local.network([states, u_l])
+            q_l = -self.critic_local.network([states, u_l]) / BATCH_SIZE
         q_grads = tape2.gradient(q_l, u_l)
-        j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, -q_grads)
-        #for i in range(len(j)):
-        #    j[i] /= BATCH_SIZE
+        j = tape1.gradient(u_l, self.actor_local.network.trainable_variables, q_grads)
         self.actor_optimizer.apply_gradients(
             zip(j, self.actor_local.network.trainable_variables))
         return
