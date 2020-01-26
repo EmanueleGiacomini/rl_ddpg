@@ -4,26 +4,28 @@ critic.py
 
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, BatchNormalization, Activation, Input, Concatenate, Add
-from tensorflow.keras import optimizers
+import numpy as np
 
+class Critic(tf.keras.Model):
+    def __init__(self, state_shape, action_dim, name='Critic'):
+        super().__init__(name=name)
 
-class Critic(object):
-    def __init__(self, state_space, action_space, lr):
-        def create_critic_network():
-            state_in = Input(shape=(state_space,), dtype='float64')
-            state_net = BatchNormalization()(state_in)
-            state_net = Dense(32, activation='relu')(state_net)
+        self.l1 = Dense(300, name='L1')
+        self.l2 = Dense(400, name='L2')
+        self.l3 = Dense(1, name='L3')
 
-            action_in = Input(shape=(action_space,), dtype='float64')
-            action_net = Dense(32, activation='relu')(action_in)
-            net = Add()([state_net, action_net])
-            out = Dense(1, activation='linear')(net)
-            model = tf.keras.Model(inputs=[state_in, action_in], outputs=[out])
-            return model
+        dummy_state = tf.constant(np.zeros(shape=(1,)+state_shape, dtype=np.float64))
+        dummy_action = tf.constant(np.zeros(shape=[1, action_dim], dtype=np.float64))
+        with tf.device("/cpu:0"):
+            self([dummy_state, dummy_action])
 
-        self.state_space = state_space
-        self.action_space = action_space
-        self.network = create_critic_network()
+    def call(self, inputs):
+        states, actions = inputs
+        features = tf.concat([states, actions], axis=1)
+        features = tf.nn.relu(self.l1(features))
+        features = tf.nn.relu(self.l2(features))
+        features = self.l3(features)
+        return features
 
 if __name__ == '__main__':
     ...

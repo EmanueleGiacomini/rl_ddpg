@@ -4,7 +4,7 @@ ddpg.py
 from agent import Agent
 import numpy as np
 import pickle
-from plotter import plot_ddpg_decisions
+from plotter import plot_ddpg_decisions, plot_reward
 
 
 def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
@@ -18,10 +18,11 @@ def print_episode(ep, t_r, t_d, t_mean, t_std, t_s,
 
 
 class DDPG(object):
-    def __init__(self, env):
+    def __init__(self, env, device):
         self.env = env
         self.agent = Agent(self.env.observation_space,
-                           self.env.action_space, 2)
+                           self.env.action_space, env.action_space.high,
+                           device)
         ...
 
     def run_epoch(self, max_steps, render=False, training=True):
@@ -38,18 +39,11 @@ class DDPG(object):
             else:
                 action = p_action
 
-            actions.append(action)
-
-            if action > 0:
-                action = int(1)
-            else:
-                action = int(0)
-
             # Let the env advance
             next_state, reward, done, info = self.env.step(action)
             done = done == True
             total_reward += reward
-
+            actions.append(action)
             # Only update the agent if we're in training phase
             self.agent.step(state, action, reward, done, next_state, training)
             if render:
@@ -62,6 +56,7 @@ class DDPG(object):
         return total_reward, done, action_mean, action_std, steps
 
     def run(self, max_episodes: int, max_iterations: int, render: bool):
+        rewards = []
         for ep in range(max_episodes):
             train_r, train_d, train_mean, train_std, train_s = self.run_epoch(max_iterations,
                                                                               render=render)
@@ -70,11 +65,14 @@ class DDPG(object):
                                                                          training=False)
             print_episode(ep, train_r, train_d, train_mean, train_std, train_s,
                           test_r, test_d, test_mean, test_std, test_s)
-            """
-            if ep % 2 == 0:
+
+            rewards.append(test_r)
+
+            if ep % 2 == 0 and ep > 0:
                 plot_ddpg_decisions(ep,
-                                    self.agent.actor_local.network,
-                                    self.agent.critic_local.network,
+                                    self.agent.actor_local,
+                                    self.agent.critic_local,
                                     self.env)
-            """
+                plot_reward(ep, list(zip(range(0, ep+2), rewards)))
+                self.agent.store_weights(ep)
         self.env.close()
