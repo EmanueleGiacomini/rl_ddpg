@@ -128,8 +128,22 @@ def plot_ddpg_decisions(ep: int,
                           origin='lower',
                           extent=[xi.min(), xi.max(), yi.min(), yi.max()])
     axs[1].set_aspect('auto')
+    #plt.savefig(f'decision-plots/ep-{ep}.png')
+    plt.savefig(f'decisions.png')
+    plt.close(fig)
 
-    plt.show()
+def plot_reward(ep: int, reward: [(int, float)]) -> None:
+    data = list(zip(*reward))
+    x = data[0]
+    y = data[1]
+    fig = plt.figure(figsize=(10, 5))
+    plt.plot(x, y)
+    plt.xlabel('Episode')
+    plt.ylabel('Mean Reward')
+    plt.title('Episode Reward over Time')
+    plt.savefig('rewards.png')
+    plt.close(fig)
+    return
 
 
 if __name__ == '__main__':

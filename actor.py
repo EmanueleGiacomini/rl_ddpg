@@ -8,23 +8,27 @@ from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras import optimizers
 import numpy as np
 
+class Actor(tf.keras.Model):
+    def __init__(self, state_size, action_size, max_action, name='Actor'):
+        super().__init__(name=name)
+        self.state_size = state_size
+        self.action_size = action_size
 
-class Actor(object):
-    def __init__(self, state_space, action_space, lr):
-        def create_actor_network() -> tf.keras.Model:
-            model = tf.keras.models.Sequential()
-            model.add(Dense(32, activation='relu', input_dim=state_space))
-            #model.add(BatchNormalization())
-            #model.add(Dense(32, activation='relu', name='state_dense1'))
-            model.add(Dense(action_space, activation='tanh',
-                            kernel_initializer=RandomUniform(-0.003, 0.003)
-                            ))
-            #tf.keras.utils.plot_model(model, './plots/actor/network.png')
-            return model
+        self.max_action = max_action
 
-        self.state_space = state_space
-        self.action_space = action_space
-        self.network = create_actor_network()
+        self.l1 = Dense(300, name='L1')
+        self.l2 = Dense(400, name='L2')
+        self.l3 = Dense(action_size, name='L3')
+
+        with tf.device("/cpu:0"):
+            self(tf.constant(np.zeros(shape=(1,)+state_size, dtype=np.float64)))
+
+    def call(self, inputs):
+        features = tf.nn.relu(self.l1(inputs))
+        features = tf.nn.relu(self.l2(features))
+        features = self.l3(features)
+        action = self.max_action * tf.nn.tanh(features)
+        return action
 
 
 if __name__ == '__main__':
